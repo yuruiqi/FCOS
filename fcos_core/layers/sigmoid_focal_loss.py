@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torch.autograd import Function
 from torch.autograd.function import once_differentiable
+import numpy as np
 
 from fcos_core import _C
 
@@ -66,6 +67,7 @@ class SigmoidFocalLoss(nn.Module):
             loss_func = sigmoid_focal_loss_cpu
 
         loss = loss_func(logits, targets, self.gamma, self.alpha)
+
         return loss.sum()
 
     def __repr__(self):

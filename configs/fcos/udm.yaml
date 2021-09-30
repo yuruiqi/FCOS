@@ -1,5 +1,6 @@
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
+  CLS_HEAD: 'UDM'
   WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
   RPN_ONLY: True
   FCOS_ON: True
@@ -10,8 +11,6 @@ MODEL:
   RETINANET:
     USE_C5: False # FCOS uses P5 instead of C5
 DATASETS:
-#  TRAIN: ("coco_2017_train", "coco_2017_val")
-#  TEST: ("coco_2017_test_dev",)
   TRAIN: ("jsph_train_coco_style", "jsph_val_coco_style")
   TEST: ("jsph_test_coco_style",)
 INPUT:
@@ -19,10 +18,6 @@ INPUT:
   MAX_SIZE_TRAIN: 200
   MIN_SIZE_TEST: 100
   MAX_SIZE_TEST: 200
-#  MIN_SIZE_TRAIN: (800,)
-#  MAX_SIZE_TRAIN: 1333
-#  MIN_SIZE_TEST: 800
-#  MAX_SIZE_TEST: 1333
 DATALOADER:
   SIZE_DIVISIBILITY: 32
 SOLVER:

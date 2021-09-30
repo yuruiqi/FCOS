@@ -7,13 +7,25 @@ import os
 class DatasetCatalog(object):
     DATA_DIR = "datasets"
     DATASETS = {
+        "jsph_train_coco_style": {
+            "img_dir": '/homes/rqyu/Data/PI-RADS/coco_style/jsph/train',
+            "ann_file": '/homes/rqyu/Data/PI-RADS/coco_style/jsph/train.json'
+        },
+        "jsph_val_coco_style": {
+            "img_dir": '/homes/rqyu/Data/PI-RADS/coco_style/jsph/val',
+            "ann_file": '/homes/rqyu/Data/PI-RADS/coco_style/jsph/val.json'
+        },
+        "jsph_test_coco_style": {
+            "img_dir": '/homes/rqyu/Data/PI-RADS/coco_style/jsph/test',
+            "ann_file": '/homes/rqyu/Data/PI-RADS/coco_style/jsph/test.json'
+        },
         "coco_2017_train": {
-            "img_dir": "coco/train2017",
-            "ann_file": "coco/annotations/instances_train2017.json"
+            "img_dir": "/public/COCOData/train2017",
+            "ann_file": "/public/COCOData/annotations/instances_train2017.json"
         },
         "coco_2017_val": {
-            "img_dir": "coco/val2017",
-            "ann_file": "coco/annotations/instances_val2017.json"
+            "img_dir": "/public/COCOData/val2017",
+            "ann_file": "/public/COCOData/annotations/instances_val2017.json"
         },
         "coco_2017_test_dev": {
             "img_dir": "coco/test2017",

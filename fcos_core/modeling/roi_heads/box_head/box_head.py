@@ -4,8 +4,8 @@ from torch import nn
 
 from .roi_box_feature_extractors import make_roi_box_feature_extractor
 from .roi_box_predictors import make_roi_box_predictor
-from .inference import make_roi_box_post_processor
-from .loss import make_roi_box_loss_evaluator
+from .inference import make_roi_box_post_processor, make_udm_roi_box_post_processor
+from .loss import make_roi_box_loss_evaluator, make_udm_roi_box_loss_evaluator
 
 
 class ROIBoxHead(torch.nn.Module):
@@ -18,8 +18,13 @@ class ROIBoxHead(torch.nn.Module):
         self.feature_extractor = make_roi_box_feature_extractor(cfg, in_channels)
         self.predictor = make_roi_box_predictor(
             cfg, self.feature_extractor.out_channels)
-        self.post_processor = make_roi_box_post_processor(cfg)
-        self.loss_evaluator = make_roi_box_loss_evaluator(cfg)
+
+        if cfg.MODEL.ROI_BOX_HEAD.PREDICTOR == 'UDM':
+            self.post_processor = make_udm_roi_box_post_processor(cfg)
+            self.loss_evaluator = make_udm_roi_box_loss_evaluator(cfg)
+        else:
+            self.post_processor = make_roi_box_post_processor(cfg)
+            self.loss_evaluator = make_roi_box_loss_evaluator(cfg)
 
     def forward(self, features, proposals, targets=None):
         """

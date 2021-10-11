@@ -1,6 +1,5 @@
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  CLS_HEAD: 'UDM'
   WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
   RPN_ONLY: True
   FCOS_ON: True
@@ -10,6 +9,8 @@ MODEL:
     BACKBONE_OUT_CHANNELS: 256
   RETINANET:
     USE_C5: False # FCOS uses P5 instead of C5
+  ROI_BOX_HEAD:
+    PREDICTOR: 'UDM'
 DATASETS:
   TRAIN: ("jsph_train_coco_style", "jsph_val_coco_style")
   TEST: ("jsph_test_coco_style",)

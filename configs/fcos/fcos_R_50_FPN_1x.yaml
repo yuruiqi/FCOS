@@ -9,6 +9,10 @@ MODEL:
     BACKBONE_OUT_CHANNELS: 256
   RETINANET:
     USE_C5: False # FCOS uses P5 instead of C5
+
+  ROI_HEADS:
+    DETECTIONS_PER_IMG: 3
+
 DATASETS:
 #  TRAIN: ("coco_2017_train", "coco_2017_val")
 #  TEST: ("coco_2017_test_dev",)

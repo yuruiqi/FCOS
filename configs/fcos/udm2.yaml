@@ -1,0 +1,48 @@
+MODEL:
+  META_ARCHITECTURE: "GeneralizedRCNN"
+  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+  RPN_ONLY: True
+  FCOS_ON: True
+  BACKBONE:
+    CONV_BODY: "R-50-FPN-RETINANET"
+  RESNETS:
+    BACKBONE_OUT_CHANNELS: 256
+#    WIDTH_PER_GROUP: 64
+  RETINANET:
+    USE_C5: False # FCOS uses P5 instead of C5
+  FCOS:
+    UDM: [-15,-5,5,15]
+    INFERENCE_TH: 0.05
+    ALL_CLASS_NMS: True
+    FOCALLOSS: True
+    NMS_TH: 0.1
+#    UDMCLASS1TH: 0.8
+DATASETS:
+  TRAIN: ("jsph_train_coco_style", "jsph_val_coco_style")
+  TEST: ("jsph_test_coco_style",)
+#  TEST: ("jsph_train_coco_style",)
+INPUT:
+  MIN_SIZE_TRAIN: (100,)
+  MAX_SIZE_TRAIN: 200
+  MIN_SIZE_TEST: 100
+  MAX_SIZE_TEST: 200
+DATALOADER:
+  SIZE_DIVISIBILITY: 32
+SOLVER:
+  BASE_LR: 0.01
+  WEIGHT_DECAY: 0.0001
+  STEPS: (60000, 80000)
+  MAX_ITER: 90000
+  IMS_PER_BATCH: 64
+  WARMUP_METHOD: "constant"
+TEST:
+  BBOX_AUG:
+    ENABLED: False
+    H_FLIP: True
+    SCALES: (400, 500, 600, 700, 900, 1000, 1100, 1200)
+#    SCALES: (10,30,60)
+    MAX_SIZE: 2000
+    SCALE_H_FLIP: True
+
+  DETECTIONS_PER_IMG: 3
+

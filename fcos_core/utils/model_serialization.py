@@ -74,7 +74,17 @@ def load_state_dict(model, loaded_state_dict):
     # DataParallel or DistributedDataParallel during serialization,
     # remove the "module" prefix before performing the matching
     loaded_state_dict = strip_prefix_if_present(loaded_state_dict, prefix="module.")
+
+    for k,v in loaded_state_dict.items():
+        if 'rpn.head.cls_logits.weight' in k:
+            n_node = model_state_dict[k].shape[0]
+            loaded_state_dict[k] = loaded_state_dict[k][0:n_node,:]
+        elif 'rpn.head.cls_logits.bias' in k:
+            n_node = model_state_dict[k].shape[0]
+            loaded_state_dict[k] = loaded_state_dict[k][0:n_node]
+
     align_and_update_state_dicts(model_state_dict, loaded_state_dict)
 
     # use strict loading
     model.load_state_dict(model_state_dict)
+

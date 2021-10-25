@@ -9,9 +9,13 @@ MODEL:
     BACKBONE_OUT_CHANNELS: 256
   RETINANET:
     USE_C5: False # FCOS uses P5 instead of C5
-
-  ROI_HEADS:
-    DETECTIONS_PER_IMG: 3
+  FCOS:
+    UDM: None
+    #    INFERENCE_TH: 0.5
+    ALL_CLASS_NMS: False
+    NMS_TH: 0.1
+#  ROI_HEADS:
+#    NMS: 0.1
 
 DATASETS:
 #  TRAIN: ("coco_2017_train", "coco_2017_val")
@@ -43,3 +47,5 @@ TEST:
     SCALES: (400, 500, 600, 700, 900, 1000, 1100, 1200)
     MAX_SIZE: 2000
     SCALE_H_FLIP: True
+
+  DETECTIONS_PER_IMG: 3

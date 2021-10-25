@@ -4,8 +4,8 @@ from torch import nn
 
 from .roi_box_feature_extractors import make_roi_box_feature_extractor
 from .roi_box_predictors import make_roi_box_predictor
-from .inference import make_roi_box_post_processor, make_udm_roi_box_post_processor
-from .loss import make_roi_box_loss_evaluator, make_udm_roi_box_loss_evaluator
+from .inference import make_roi_box_post_processor
+from .loss import make_roi_box_loss_evaluator
 
 
 class ROIBoxHead(torch.nn.Module):
@@ -19,12 +19,8 @@ class ROIBoxHead(torch.nn.Module):
         self.predictor = make_roi_box_predictor(
             cfg, self.feature_extractor.out_channels)
 
-        if cfg.MODEL.ROI_BOX_HEAD.PREDICTOR == 'UDM':
-            self.post_processor = make_udm_roi_box_post_processor(cfg)
-            self.loss_evaluator = make_udm_roi_box_loss_evaluator(cfg)
-        else:
-            self.post_processor = make_roi_box_post_processor(cfg)
-            self.loss_evaluator = make_roi_box_loss_evaluator(cfg)
+        self.post_processor = make_roi_box_post_processor(cfg)
+        self.loss_evaluator = make_roi_box_loss_evaluator(cfg)
 
     def forward(self, features, proposals, targets=None):
         """
@@ -40,7 +36,6 @@ class ROIBoxHead(torch.nn.Module):
             losses (dict[Tensor]): During training, returns the losses for the
                 head. During testing, returns an empty dict.
         """
-
         if self.training:
             # Faster R-CNN subsamples during training the proposals with a fixed
             # positive / negative ratio

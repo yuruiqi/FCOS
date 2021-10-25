@@ -56,31 +56,6 @@ class FPNPredictor(nn.Module):
         return scores, bbox_deltas
 
 
-@registry.ROI_BOX_PREDICTOR.register("UDM")
-class UDMPredictor(nn.Module):
-    def __init__(self, config, in_channels):
-        super().__init__()
-        assert in_channels is not None
-
-        num_inputs = in_channels
-
-        self.avgpool = nn.AdaptiveAvgPool2d(1)
-        self.cls_score = nn.Linear(num_inputs, 1)
-        num_bbox_reg_classes = 2 if config.MODEL.CLS_AGNOSTIC_BBOX_REG else 1
-        self.bbox_pred = nn.Linear(num_inputs, num_bbox_reg_classes * 4)
-
-        nn.init.normal_(self.bbox_pred.weight, mean=0, std=0.001)
-        nn.init.constant_(self.bbox_pred.bias, 0)
-
-    def forward(self, x):
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        cls_logit = self.cls_score(x)
-        bbox_pred = self.bbox_pred(x)
-        return cls_logit, bbox_pred
-
-
 def make_roi_box_predictor(cfg, in_channels):
     func = registry.ROI_BOX_PREDICTOR[cfg.MODEL.ROI_BOX_HEAD.PREDICTOR]
     return func(cfg, in_channels)
-

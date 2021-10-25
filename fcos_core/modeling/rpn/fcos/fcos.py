@@ -3,20 +3,22 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from .inference import make_fcos_postprocessor
-from .loss import make_fcos_loss_evaluator
+from .inference import make_fcos_postprocessor, make_udm_fcos_postprocessor
+from .loss import make_fcos_loss_evaluator, make_udm_fcos_loss_evaluator
 
 from fcos_core.layers import Scale
 from fcos_core.layers import DFConv2d
 
 
 class FCOSHead(torch.nn.Module):
-    def __init__(self, cfg, in_channels):
+    def __init__(self, cfg, in_channels, udm=None):
         """
         Arguments:
             in_channels (int): number of channels of the input feature
         """
         super(FCOSHead, self).__init__()
+        self.udm = udm
+
         # TODO: Implement the sigmoid version first.
         num_classes = cfg.MODEL.FCOS.NUM_CLASSES - 1
         self.fpn_strides = cfg.MODEL.FCOS.FPN_STRIDES
@@ -60,10 +62,16 @@ class FCOSHead(torch.nn.Module):
 
         self.add_module('cls_tower', nn.Sequential(*cls_tower))
         self.add_module('bbox_tower', nn.Sequential(*bbox_tower))
-        self.cls_logits = nn.Conv2d(
-            in_channels, num_classes, kernel_size=3, stride=1,
-            padding=1
-        )
+        if cfg.MODEL.FCOS.UDM:
+            self.cls_logits = nn.Conv2d(
+                in_channels, 1, kernel_size=3, stride=1,
+                padding=1
+            )
+        else:
+            self.cls_logits = nn.Conv2d(
+                in_channels, num_classes, kernel_size=3, stride=1,
+                padding=1
+            )
         self.bbox_pred = nn.Conv2d(
             in_channels, 4, kernel_size=3, stride=1,
             padding=1
@@ -97,7 +105,10 @@ class FCOSHead(torch.nn.Module):
             cls_tower = self.cls_tower(feature)
             box_tower = self.bbox_tower(feature)
 
-            logits.append(self.cls_logits(cls_tower))
+            if self.udm is None:
+                logits.append(self.cls_logits(cls_tower))
+            else:
+                logits.append(self.udm(self.cls_logits(cls_tower)).squeeze(dim=1).permute(0,3,1,2))
             if self.centerness_on_reg:
                 centerness.append(self.centerness(box_tower))
             else:
@@ -124,11 +135,17 @@ class FCOSModule(torch.nn.Module):
     def __init__(self, cfg, in_channels):
         super(FCOSModule, self).__init__()
 
-        head = FCOSHead(cfg, in_channels)
+        if cfg.MODEL.FCOS.UDM is not None:
+            self.udm = UnsureDataLoss(cfg.MODEL.FCOS.UDM, device=cfg.MODEL.DEVICE)
+            head = FCOSHead(cfg, in_channels, udm=self.udm)
+            loss_evaluator = make_udm_fcos_loss_evaluator(cfg, self.udm)
+            box_selector_test = make_udm_fcos_postprocessor(cfg, self.udm)
+        else:
+            self.udm = None
+            head = FCOSHead(cfg, in_channels)
+            loss_evaluator = make_fcos_loss_evaluator(cfg)
+            box_selector_test = make_fcos_postprocessor(cfg)
 
-        box_selector_test = make_fcos_postprocessor(cfg)
-
-        loss_evaluator = make_fcos_loss_evaluator(cfg)
         self.head = head
         self.box_selector_test = box_selector_test
         self.loss_evaluator = loss_evaluator
@@ -208,5 +225,91 @@ class FCOSModule(torch.nn.Module):
         locations = torch.stack((shift_x, shift_y), dim=1) + stride // 2
         return locations
 
+
 def build_fcos(cfg, in_channels):
     return FCOSModule(cfg, in_channels)
+
+
+#############################################
+class UnsureDataLoss(nn.Module):
+    def __init__(self, t, device, e=None, c=None):
+        super().__init__()
+        # avoid inf
+        self.bias = torch.tensor([1e-7], dtype=torch.float32, device=device, requires_grad=False)
+
+        self.t = nn.Parameter(torch.tensor(t, dtype=torch.float32), requires_grad=True)
+        if e is None:
+            self.e = torch.tensor([1, ] * len(t), dtype=torch.float32, device=device)
+        else:
+            # <1 to let t higher, or >1 to let t lower
+            self.e = nn.Parameter(torch.tensor(e, dtype=torch.float32), requires_grad=True, device=device)
+
+        if c is None:
+            c = [0, ] * len(t)
+        self.c = torch.tensor(c, dtype=torch.float32, device=device)
+
+        self.num_class = len(t) + 1
+
+    def forward(self, pred:torch.Tensor):
+        """
+        :param pred: (batch, *)
+        :return:
+        """
+        confids = []
+        for i in range(self.t.shape[0]+1):  # i means class
+            if i == 0:
+                confid_i = self.compute_confid(pred, t2=self.t[i], e2=self.e[i], c2=self.c[i])
+            elif i == self.t.shape[0]:
+                confid_i = self.compute_confid(pred, t1=self.t[i-1], e1=self.e[i-1], c1=self.c[i-1])
+            else:
+                confid_i = self.compute_confid(pred, self.t[i-1], self.t[i], self.e[i-1], self.e[i], self.c[i-1], self.c[i])
+            confids.append(confid_i)
+
+        confids = torch.stack(confids, dim=-1)
+        return confids
+
+    def loss(self, confids, label):
+        all_class_loss = -torch.log(confids + self.bias)
+
+        loss = 0
+        for i in range(self.num_class):
+            index = label.eq(i)
+            i_loss = all_class_loss[...,i][index]
+            if 0 not in torch.prod(torch.tensor(i_loss.shape)) != 0:
+                loss += i_loss.mean()
+        loss = loss/(self.num_class)
+
+        return loss
+
+    def inference(self, all_class_confid):
+        """
+        pred: (batch, 1)
+        """
+        confid, pred_out = all_class_confid.max(dim=-1)
+
+        return pred_out, confid
+
+    def compute_confid(self, x, t1=None, t2=None, e1=None, e2=None, c1=None, c2=None):
+        zero = torch.tensor([0], dtype=x.dtype, device=x.device)
+        if e1 is None:
+            e1 = zero
+        if e2 is None:
+            e2 = zero
+        if c1 is None:
+            c1 = zero
+        if c2 is None:
+            c2 = zero
+
+        if t1 is None:
+            p_x = zero
+        else:
+            p_x = torch.sigmoid(-x + t1 + torch.log(e1 + self.bias) + c1)
+
+        if t2 is None:
+            p_x_add1 = torch.tensor([1], dtype=x.dtype, device=x.device)
+        else:
+            p_x_add1 = torch.sigmoid(-x + t2 + torch.log(e2 + self.bias) + c2)
+
+        confid = p_x_add1 - p_x
+        return confid
+

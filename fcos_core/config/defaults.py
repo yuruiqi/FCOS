@@ -314,6 +314,11 @@ _C.MODEL.FCOS.CENTERNESS_ON_REG = False
 
 _C.MODEL.FCOS.USE_DCN_IN_TOWER = False
 
+_C.MODEL.FCOS.UDM = None
+_C.MODEL.FCOS.ALL_CLASS_NMS = False
+_C.MODEL.FCOS.FOCALLOSS = False
+_C.MODEL.FCOS.UDMCLASS1TH = None
+
 # ---------------------------------------------------------------------------- #
 # RetinaNet Options (Follow the Detectron version)
 # ---------------------------------------------------------------------------- #

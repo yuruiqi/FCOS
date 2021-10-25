@@ -75,6 +75,11 @@ def do_train(
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
         meters.update(loss=losses_reduced, **loss_dict_reduced)
 
+        # for group in optimizer.param_groups:
+        #     for param in group["params"]:
+        #         if param.grad is not None:
+        #             param.grad.data.clamp_(-50, 50)
+
         optimizer.zero_grad()
         losses.backward()
         optimizer.step()
